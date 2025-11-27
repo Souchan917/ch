@@ -125,6 +125,73 @@
         color: #94a3b8;
         font-size: 0.9rem;
       }
+      .actions {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 2rem;
+      }
+      .clear-button {
+        background: #f97316;
+        color: #fff;
+        padding: 0.75rem 1.5rem;
+        border-radius: 999px;
+        border: none;
+        font-weight: 700;
+        font-size: 1rem;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+      }
+      .clear-button:hover {
+        transform: translateY(-2px);
+        opacity: 0.95;
+      }
+      .clear-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 0.2s ease, visibility 0.2s ease;
+        z-index: 1000;
+      }
+      .clear-overlay.show {
+        visibility: visible;
+        opacity: 1;
+      }
+      .clear-card {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .clear-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .clear-exit-zone {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 140px;
+        height: 140px;
+        cursor: pointer;
+        background: transparent;
+        touch-action: manipulation;
+      }
+      .clear-exit-zone:active {
+        background: rgba(0, 0, 0, 0.08);
+      }
       @media (max-width: 520px) {
         .controls {
           flex-direction: column;
@@ -145,10 +212,22 @@
           下の各トラックで再生・一時停止や音量調整ができます。ファイルはローカルに保存されているのでネットが切れても使用可能です。
         </p>
       </header>
+      <div class="actions">
+        <button type="button" class="clear-button" id="showClear">
+          クリア画像を表示
+        </button>
+      </div>
 
       <section class="tracks" id="tracks"></section>
 
       <footer>音声ファイルはブラウザ内のみで再生されます。</footer>
+    </div>
+
+    <div class="clear-overlay" id="clearOverlay" aria-hidden="true">
+      <div class="clear-card">
+        <img src="CLEAR.png" alt="CLEAR画面" />
+        <div class="clear-exit-zone" data-role="exit-zone" aria-label="閉じる"></div>
+      </div>
     </div>
 
     <script>
@@ -159,6 +238,14 @@
       ];
 
       const tracksEl = document.getElementById("tracks");
+      const clearOverlay = document.getElementById("clearOverlay");
+      const showClearBtn = document.getElementById("showClear");
+      const exitZone = clearOverlay.querySelector("[data-role='exit-zone']");
+      const EXIT_TAP_REQUIREMENT = 5;
+      const TAP_RESET_DELAY = 1500;
+      let exitTapCount = 0;
+      let tapResetTimer = null;
+      let fullscreenRequested = false;
 
       files.forEach(({ title, file }, index) => {
         const card = document.createElement("article");
@@ -225,10 +312,101 @@
         tracksEl.appendChild(card);
       });
 
+      showClearBtn.addEventListener("click", () => {
+        enterFullscreen();
+        clearOverlay.classList.add("show");
+        clearOverlay.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+      });
+
+      exitZone.addEventListener("click", handleExitZoneTap);
+
+      function handleExitZoneTap(event) {
+        event.stopPropagation();
+        exitTapCount += 1;
+        if (exitTapCount >= EXIT_TAP_REQUIREMENT) {
+          hideOverlay();
+          resetTapCounter();
+        } else {
+          scheduleTapReset();
+        }
+      }
+
+      function scheduleTapReset() {
+        clearTimeout(tapResetTimer);
+        tapResetTimer = setTimeout(() => {
+          exitTapCount = 0;
+        }, TAP_RESET_DELAY);
+      }
+
+      function resetTapCounter() {
+        clearTimeout(tapResetTimer);
+        tapResetTimer = null;
+        exitTapCount = 0;
+      }
+
+      function hideOverlay() {
+        clearOverlay.classList.remove("show");
+        clearOverlay.setAttribute("aria-hidden", "true");
+        document.body.style.overflow = "";
+        resetTapCounter();
+        if (fullscreenRequested) {
+          leaveFullscreen();
+          fullscreenRequested = false;
+        }
+      }
+
       function pauseAll() {
         document.querySelectorAll("audio").forEach((audioEl) => {
           audioEl.pause();
         });
+      }
+
+      function enterFullscreen() {
+        const el = document.documentElement;
+        const request =
+          el.requestFullscreen ||
+          el.webkitRequestFullscreen ||
+          el.msRequestFullscreen;
+        const isFullscreen =
+          document.fullscreenElement ||
+          document.webkitFullscreenElement ||
+          document.msFullscreenElement;
+        if (!request || isFullscreen) {
+          fullscreenRequested = Boolean(isFullscreen);
+          return;
+        }
+        fullscreenRequested = true;
+        try {
+          const result = request.call(el);
+          if (result && typeof result.then === "function") {
+            result.catch(() => {
+              fullscreenRequested = false;
+            });
+          }
+        } catch (error) {
+          fullscreenRequested = false;
+        }
+      }
+
+      function leaveFullscreen() {
+        const exit =
+          document.exitFullscreen ||
+          document.webkitExitFullscreen ||
+          document.msExitFullscreen;
+        const isFullscreen =
+          document.fullscreenElement ||
+          document.webkitFullscreenElement ||
+          document.msFullscreenElement;
+        if (!exit || !isFullscreen) {
+          return;
+        }
+        try {
+          const result = exit.call(document);
+          if (result && typeof result.then === "function") {
+            result.catch(() => {});
+          }
+        } catch (error) {}
       }
     </script>
   </body>
