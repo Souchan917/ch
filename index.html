@@ -86,6 +86,14 @@
         cursor: pointer;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
       }
+      button.secondary {
+        background: rgba(15, 23, 42, 0.65);
+        color: #f8fafc;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+      }
+      button.loop-disabled {
+        opacity: 0.65;
+      }
       button:hover {
         transform: translateY(-2px) scale(1.01);
         box-shadow: 0 8px 15px rgba(249, 115, 22, 0.35);
@@ -162,6 +170,7 @@
           </div>
           <div class="controls">
             <button type="button" data-action="toggle">再生</button>
+            <button type="button" data-action="loop" class="secondary">ループON</button>
             <input type="range" min="0" max="100" value="70" data-role="volume"/>
             <span class="volume-value">70%</span>
           </div>
@@ -170,6 +179,7 @@
         `;
         const audio = card.querySelector("audio");
         const button = card.querySelector("[data-action='toggle']");
+        const loopButton = card.querySelector("[data-action='loop']");
         const slider = card.querySelector("[data-role='volume']");
         const volumeValue = card.querySelector(".volume-value");
         const status = card.querySelector("[data-role='status']");
@@ -183,6 +193,12 @@
           } else {
             audio.pause();
           }
+        });
+
+        loopButton.addEventListener("click", () => {
+          audio.loop = !audio.loop;
+          loopButton.textContent = audio.loop ? "ループON" : "ループOFF";
+          loopButton.classList.toggle("loop-disabled", !audio.loop);
         });
 
         audio.addEventListener("play", () => {
