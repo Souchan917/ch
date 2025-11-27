@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>オフライン音声ミキサー</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
+          sans-serif;
+        background-color: #f9fafb;
+        color: #111;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(
+            circle at top,
+            rgba(59, 130, 246, 0.15),
+            transparent 60%
+          ),
+          #0f172a;
+        color: #f8fafc;
+        display: flex;
+        justify-content: center;
+        padding: 2rem 1rem 4rem;
+      }
+      .page {
+        width: min(960px, 100%);
+      }
+      header {
+        margin-bottom: 1.5rem;
+        text-align: center;
+      }
+      h1 {
+        font-size: clamp(1.8rem, 4vw, 3rem);
+        margin-bottom: 0.5rem;
+      }
+      p {
+        margin: 0;
+        line-height: 1.6;
+        color: #cbd5f5;
+      }
+      .tracks {
+        display: grid;
+        gap: 1.25rem;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
+      .track-card {
+        background: rgba(15, 23, 42, 0.65);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 1.25rem;
+        padding: 1.5rem;
+        backdrop-filter: blur(12px);
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.5);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      .track-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .track-title span {
+        font-size: 0.9rem;
+        color: #94a3b8;
+      }
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      button {
+        border: none;
+        border-radius: 999px;
+        padding: 0.55rem 1.35rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #0f172a;
+        background: linear-gradient(120deg, #fbbf24, #f97316);
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      button:hover {
+        transform: translateY(-2px) scale(1.01);
+        box-shadow: 0 8px 15px rgba(249, 115, 22, 0.35);
+      }
+      button:active {
+        transform: translateY(0);
+        box-shadow: none;
+      }
+      input[type="range"] {
+        flex: 1;
+        accent-color: #38bdf8;
+        appearance: none;
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.35);
+        cursor: pointer;
+      }
+      .volume-value {
+        font-variant-numeric: tabular-nums;
+        color: #e2e8f0;
+      }
+      .status {
+        font-size: 0.88rem;
+        color: #6ee7b7;
+      }
+      footer {
+        text-align: center;
+        margin-top: 2rem;
+        color: #94a3b8;
+        font-size: 0.9rem;
+      }
+      @media (max-width: 520px) {
+        .controls {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        button {
+          width: 100%;
+          text-align: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <h1>オフライン音声ミキサー</h1>
+        <p>
+          下の各トラックで再生・一時停止や音量調整ができます。ファイルはローカルに保存されているのでネットが切れても使用可能です。
+        </p>
+      </header>
+
+      <section class="tracks" id="tracks"></section>
+
+      <footer>音声ファイルはブラウザ内のみで再生されます。</footer>
+    </div>
+
+    <script>
+      const files = [
+        { title: "トラック 1", file: "11.mp3" },
+        { title: "トラック 2", file: "22.mp3" },
+        { title: "トラック 3", file: "33.mp3" },
+      ];
+
+      const tracksEl = document.getElementById("tracks");
+
+      files.forEach(({ title, file }, index) => {
+        const card = document.createElement("article");
+        card.className = "track-card";
+        card.innerHTML = `
+          <div class="track-title">
+            ${title}
+            <span>${file}</span>
+          </div>
+          <div class="controls">
+            <button type="button" data-action="toggle">再生</button>
+            <input type="range" min="0" max="100" value="70" data-role="volume"/>
+            <span class="volume-value">70%</span>
+          </div>
+          <div class="status" data-role="status">待機中</div>
+          <audio src="${file}" preload="auto"></audio>
+        `;
+        const audio = card.querySelector("audio");
+        const button = card.querySelector("[data-action='toggle']");
+        const slider = card.querySelector("[data-role='volume']");
+        const volumeValue = card.querySelector(".volume-value");
+        const status = card.querySelector("[data-role='status']");
+
+        audio.volume = Number(slider.value) / 100;
+
+        button.addEventListener("click", () => {
+          if (audio.paused) {
+            pauseAll();
+            audio.play();
+          } else {
+            audio.pause();
+          }
+        });
+
+        audio.addEventListener("play", () => {
+          button.textContent = "一時停止";
+          status.textContent = "再生中";
+        });
+
+        audio.addEventListener("pause", () => {
+          button.textContent = "再生";
+          status.textContent = "待機中";
+        });
+
+        audio.addEventListener("ended", () => {
+          status.textContent = "終了";
+          button.textContent = "再生";
+        });
+
+        slider.addEventListener("input", () => {
+          const volume = Number(slider.value) / 100;
+          audio.volume = volume;
+          volumeValue.textContent = `${slider.value}%`;
+        });
+
+        tracksEl.appendChild(card);
+      });
+
+      function pauseAll() {
+        document.querySelectorAll("audio").forEach((audioEl) => {
+          audioEl.pause();
+        });
+      }
+    </script>
+  </body>
+</html>
