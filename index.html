@@ -149,7 +149,7 @@
       .clear-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(15, 23, 42, 0.9);
+        background: #000;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -164,6 +164,7 @@
         opacity: 1;
       }
       .clear-card {
+        --clear-scale: 1;
         position: relative;
         width: 100%;
         height: 100%;
@@ -178,6 +179,8 @@
         height: 100%;
         object-fit: cover;
         display: block;
+        transform-origin: center;
+        transform: scale(var(--clear-scale));
       }
       .clear-exit-zone {
         position: absolute;
@@ -191,6 +194,38 @@
       }
       .clear-exit-zone:active {
         background: rgba(0, 0, 0, 0.08);
+      }
+      .clear-controls {
+        position: absolute;
+        bottom: 32px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: rgba(15, 23, 42, 0.75);
+        padding: 0.65rem 1.35rem;
+        border-radius: 999px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+        font-size: 0.95rem;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+      }
+      .clear-controls.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .clear-controls label {
+        font-weight: 600;
+        letter-spacing: 0.05em;
+      }
+      .clear-controls input[type="range"] {
+        width: min(260px, 40vw);
+        accent-color: #f97316;
+      }
+      .clear-controls span {
+        font-variant-numeric: tabular-nums;
       }
       @media (max-width: 520px) {
         .controls {
@@ -227,6 +262,17 @@
       <div class="clear-card">
         <img src="CLEAR.png" alt="CLEAR画面" />
         <div class="clear-exit-zone" data-role="exit-zone" aria-label="閉じる"></div>
+        <div class="clear-controls" aria-label="画像サイズ調整">
+          <label for="clearScale">サイズ</label>
+          <input
+            type="range"
+            id="clearScale"
+            min="50"
+            max="150"
+            value="100"
+          />
+          <span id="clearScaleValue">100%</span>
+        </div>
       </div>
     </div>
 
@@ -241,11 +287,17 @@
       const clearOverlay = document.getElementById("clearOverlay");
       const showClearBtn = document.getElementById("showClear");
       const exitZone = clearOverlay.querySelector("[data-role='exit-zone']");
+      const clearCard = clearOverlay.querySelector(".clear-card");
+      const clearControls = clearOverlay.querySelector(".clear-controls");
+      const scaleSlider = document.getElementById("clearScale");
+      const scaleValue = document.getElementById("clearScaleValue");
       const EXIT_TAP_REQUIREMENT = 5;
       const TAP_RESET_DELAY = 1500;
+      const CONTROLS_HIDE_DELAY = 1200;
       let exitTapCount = 0;
       let tapResetTimer = null;
       let fullscreenRequested = false;
+      let controlsVisibilityTimer = null;
 
       files.forEach(({ title, file }, index) => {
         const card = document.createElement("article");
@@ -313,6 +365,7 @@
       });
 
       showClearBtn.addEventListener("click", () => {
+        hideClearControls(true);
         enterFullscreen();
         clearOverlay.classList.add("show");
         clearOverlay.setAttribute("aria-hidden", "false");
@@ -320,6 +373,17 @@
       });
 
       exitZone.addEventListener("click", handleExitZoneTap);
+      scaleSlider.addEventListener("input", () => {
+        updateClearScale(scaleSlider.value);
+      });
+      updateClearScale(scaleSlider.value);
+      ["pointermove", "pointerdown"].forEach((eventName) => {
+        clearOverlay.addEventListener(eventName, () => {
+          if (clearOverlay.classList.contains("show")) {
+            showClearControls();
+          }
+        });
+      });
 
       function handleExitZoneTap(event) {
         event.stopPropagation();
@@ -350,6 +414,7 @@
         clearOverlay.setAttribute("aria-hidden", "true");
         document.body.style.overflow = "";
         resetTapCounter();
+        hideClearControls(true);
         if (fullscreenRequested) {
           leaveFullscreen();
           fullscreenRequested = false;
@@ -360,6 +425,31 @@
         document.querySelectorAll("audio").forEach((audioEl) => {
           audioEl.pause();
         });
+      }
+
+      function showClearControls() {
+        clearControls.classList.add("visible");
+        clearTimeout(controlsVisibilityTimer);
+        controlsVisibilityTimer = setTimeout(() => {
+          hideClearControls();
+        }, CONTROLS_HIDE_DELAY);
+      }
+
+      function hideClearControls(force = false) {
+        if (force) {
+          clearControls.classList.remove("visible");
+          clearTimeout(controlsVisibilityTimer);
+          controlsVisibilityTimer = null;
+          return;
+        }
+        clearControls.classList.remove("visible");
+      }
+
+      function updateClearScale(value) {
+        const numericValue = Number(value);
+        const scale = Math.min(Math.max(numericValue, 10), 200) / 100;
+        clearCard.style.setProperty("--clear-scale", scale);
+        scaleValue.textContent = `${numericValue}%`;
       }
 
       function enterFullscreen() {
