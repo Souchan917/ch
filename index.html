@@ -166,7 +166,7 @@
             <span class="volume-value">70%</span>
           </div>
           <div class="status" data-role="status">待機中</div>
-          <audio src="${file}" preload="auto"></audio>
+          <audio src="${file}" preload="auto" loop></audio>
         `;
         const audio = card.querySelector("audio");
         const button = card.querySelector("[data-action='toggle']");
